@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calculadora de Casa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one screen. Tape (history) arriba ocupa lo que sobra, display, barra de borrar, teclado 5x4 abajo. */
+:root {
+  --bg: #e9edef;
+  --tape: #fbfcfc;
+  --tape-line: #d5dcdf;
+  --ink: #1b2326;
+  --ink-soft: #5d6a70;
+  --neg: #c8361f;
+  --key-num: #4a555b;
+  --key-num-ink: #ffffff;
+  --key-op: #d3dadd;
+  --key-op-ink: #1b2326;
+  --key-tool: #c3cbcf;
+  --accent: #2f8f3a;
+  --accent-ink: #ffffff;
+  --sheet: #ffffff;
+  --shade: rgba(16, 22, 25, .45);
+  --f-num: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --f-ui: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1113; --tape: #050708; --tape-line: #2a3236; --ink: #f1f4f5; --ink-soft: #9aa7ad;
+    --neg: #ff6a50; --key-num: #3b4448; --key-num-ink: #ffffff; --key-op: #8e999e; --key-op-ink: #0d1113;
+    --key-tool: #6b767b; --accent: #3fae4b; --accent-ink: #06130a; --sheet: #192023; --shade: rgba(0,0,0,.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1113; --tape: #050708; --tape-line: #2a3236; --ink: #f1f4f5; --ink-soft: #9aa7ad;
+  --neg: #ff6a50; --key-num: #3b4448; --key-num-ink: #ffffff; --key-op: #8e999e; --key-op-ink: #0d1113;
+  --key-tool: #6b767b; --accent: #3fae4b; --accent-ink: #06130a; --sheet: #192023; --shade: rgba(0,0,0,.6);
+  color-scheme: dark;
+}
+html { height: 100%; box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-ui);
+  -webkit-tap-highlight-color: transparent; overflow: hidden; user-select: none; -webkit-user-select: none;
+}
+.app {
+  height: 100%; display: flex; flex-direction: column; gap: 6px;
+  max-width: 560px; margin: 0 auto;
+  padding-block: 8px;
+  padding-left: max(8px, env(safe-area-inset-left, 0px));
+  padding-right: max(8px, env(safe-area-inset-right, 0px));
+}
+@media (min-width: 420px) { .app { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
+
+/* Cinta */
+.tape {
+  flex: 1 1 auto; min-height: 90px; overflow-y: auto; background: var(--tape);
+  border: 2px solid var(--tape-line); border-radius: 6px; overscroll-behavior: contain;
+}
+.tape-empty { padding: 18px 14px; color: var(--ink-soft); font-size: 15px; line-height: 1.4; }
+.day { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft);
+  padding: 10px 12px 4px; border-bottom: 1px solid var(--tape-line); }
+.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center;
+  width: 100%; padding: 7px 12px; border: 0; border-bottom: 1px solid var(--tape-line);
+  background: transparent; color: var(--ink); text-align: right; font: inherit; cursor: pointer;
+}
+.row:active { background: var(--tape-line); }
+.row .tag { text-align: left; font-size: 14px; color: var(--ink-soft); overflow-wrap: anywhere; min-width: 0; }
+.row .tag b { color: var(--ink); font-weight: 700; }
+.row .nums { font-family: var(--f-num); font-variant-numeric: tabular-nums; line-height: 1.3; min-width: 0; }
+.row .ex { font-size: 16px; color: var(--ink-soft); overflow-wrap: anywhere; }
+.row .res { font-size: 19px; font-weight: 600; overflow-wrap: anywhere; }
+.row .res.neg { color: var(--neg); }
+
+/* Display */
+.display {
+  background: var(--tape); border: 2px solid var(--tape-line); border-radius: 6px;
+  padding: 6px 12px; text-align: right; font-family: var(--f-num); font-variant-numeric: tabular-nums;
+  min-height: 74px; display: flex; flex-direction: column; justify-content: center;
+}
+.display .cur { font-size: 34px; font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }
+.display .prev { font-size: 15px; color: var(--ink-soft); min-height: 1.2em; }
+
+/* Teclas */
+.tools { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; flex: 0 0 auto; }
+.keys { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(4, 1fr); gap: 4px;
+  flex: 0 0 auto; height: min(52vh, 430px); }
+button.k {
+  border: 0; border-radius: 4px; font-family: var(--f-ui); cursor: pointer; touch-action: manipulation;
+  display: flex; align-items: center; justify-content: center; transition: filter .06s, transform .06s;
+}
+button.k:active { filter: brightness(.82); transform: scale(.97); }
+button.k:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.k.num { background: var(--key-num); color: var(--key-num-ink); font-size: clamp(30px, 9vw, 44px); }
+.k.op { background: var(--key-op); color: var(--key-op-ink); font-size: clamp(28px, 8vw, 40px); font-weight: 700; }
+.k.eq { background: var(--accent); color: var(--accent-ink); font-size: clamp(32px, 9vw, 46px); font-weight: 700; }
+.k.tool { background: var(--key-tool); color: var(--key-op-ink); height: 48px; font-size: 15px; font-weight: 700; gap: 6px; }
+.k.tool svg { width: 24px; height: 24px; }
+@media (prefers-reduced-motion: reduce) { button.k { transition: none; } button.k:active { transform: none; } }
+
+/* Hoja (detalle de un renglón / dólar) */
+.shade { position: fixed; inset: 0; background: var(--shade); display: flex; align-items: flex-end; justify-content: center; z-index: 20; }
+.sheet {
+  width: 100%; max-width: 560px; background: var(--sheet); color: var(--ink); border-radius: 14px 14px 0 0;
+  padding: 18px max(16px, env(safe-area-inset-right, 0px)) calc(18px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; gap: 12px; max-height: 85%; overflow-y: auto;
+}
+.sheet h2 { margin: 0; font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; }
+.sheet .big { font-family: var(--f-num); text-align: right; font-variant-numeric: tabular-nums; }
+.sheet .big .ex { color: var(--ink-soft); font-size: 18px; overflow-wrap: anywhere; }
+.sheet .big .res { font-size: 32px; font-weight: 600; overflow-wrap: anywhere; }
+.sheet .big .res.neg { color: var(--neg); }
+.btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sb { min-height: 50px; border: 0; border-radius: 8px; background: var(--key-op); color: var(--key-op-ink);
+  font: 700 16px var(--f-ui); cursor: pointer; padding: 0 10px; }
+.sb.main { background: var(--accent); color: var(--accent-ink); }
+.sb.warn { background: transparent; color: var(--neg); border: 2px solid var(--neg); }
+.sb:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-soft); }
+.field input { font: 20px var(--f-ui); padding: 10px 12px; border-radius: 8px; border: 2px solid var(--tape-line);
+  background: var(--tape); color: var(--ink); width: 100%; user-select: text; -webkit-user-select: text; }
+.hint { font-size: 14px; color: var(--ink-soft); margin: 0; line-height: 1.4; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 20px; font-weight: 700; z-index: 30; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="tape" id="tape" aria-label="Historial"></div>
+
+  <div class="display" aria-live="polite">
+    <div class="cur" id="cur">0</div>
+    <div class="prev" id="prev"></div>
+  </div>
+
+  <div class="tools">
+    <button class="k tool" id="t-usd" aria-label="Pesos y dólares">US$</button>
+    <button class="k tool" id="t-copy" aria-label="Copiar número">Copiar</button>
+    <span></span>
+    <button class="k tool" id="t-clear" aria-label="Borrar renglón actual" title="Borra el cálculo actual (no el historial)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 16l9-9 6 6-6 6H8z"/><path d="M8 19h12"/></svg>
+    </button>
+    <button class="k tool" id="t-back" aria-label="Borrar un número">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M9 5h11v14H9l-6-7z"/><path d="M12 9l5 6M17 9l-5 6"/></svg>
+    </button>
+  </div>
+
+  <div class="keys" id="keys">
+    <button class="k num" data-k="7">7</button><button class="k num" data-k="8">8</button><button class="k num" data-k="9">9</button>
+    <button class="k op" data-k="(">(</button><button class="k op" data-k=")">)</button>
+    <button class="k num" data-k="4">4</button><button class="k num" data-k="5">5</button><button class="k num" data-k="6">6</button>
+    <button class="k op" data-k="×" aria-label="por">×</button><button class="k op" data-k="÷" aria-label="dividido">÷</button>
+    <button class="k num" data-k="1">1</button><button class="k num" data-k="2">2</button><button class="k num" data-k="3">3</button>
+    <button class="k op" data-k="+" aria-label="más">+</button><button class="k op" data-k="-" aria-label="menos">−</button>
+    <button class="k op" data-k="%" aria-label="por ciento">%</button><button class="k num" data-k="0">0</button>
+    <button class="k op" data-k="." aria-label="punto">.</button><button class="k op" data-k="±" aria-label="cambiar signo">±</button>
+    <button class="k eq" data-k="=" aria-label="igual">=</button>
+  </div>
+</div>
+
+<div id="overlay" hidden></div>
+
+<script>
+(() => {
+  const MAX_HIST = 50;
+  const KEY = "calc-casa-v1";
+  const OPS = "+-×÷";
+
+  // ---------- Estado ----------
+  let st = { hist: [], expr: "", just: false, rate: "", rateAt: 0, nid: 1 };
+  try { const raw = localStorage.getItem(KEY); if (raw) st = Object.assign(st, JSON.parse(raw)); } catch (e) {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
+
+  // ---------- Matemática (sin eval) ----------
+  function tokenize(s) {
+    const t = []; let i = 0;
+    while (i < s.length) {
+      const c = s[i];
+      if (/[0-9.]/.test(c)) { let j = i; while (j < s.length && /[0-9.]/.test(s[j])) j++; const n = s.slice(i, j);
+        if ((n.match(/\./g) || []).length > 1 || n === ".") throw 0; t.push(n); i = j; }
+      else if (OPS.includes(c) || c === "(" || c === ")") { t.push(c); i++; }
+      else throw 0;
+    }
+    return t;
+  }
+  function parse(tokens) {
+    let p = 0;
+    const peek = () => tokens[p];
+    function expr() { let v = term(); while (peek() === "+" || peek() === "-") { const o = tokens[p++]; const r = term(); v = o === "+" ? v + r : v - r; } return v; }
+    function term() { let v = factor(); while (peek() === "×" || peek() === "÷") { const o = tokens[p++]; const r = factor(); if (o === "÷" && r === 0) throw "div0"; v = o === "×" ? v * r : v / r; } return v; }
+    function factor() {
+      const t = tokens[p];
+      if (t === "-") { p++; return -factor(); }
+      if (t === "+") { p++; return factor(); }
+      if (t === "(") { p++; const v = expr(); if (tokens[p] === ")") p++; return v; }
+      if (t !== undefined && /^[0-9.]/.test(t)) { p++; return parseFloat(t); }
+      throw 0;
+    }
+    const v = expr(); if (p !== tokens.length) throw 0; return v;
+  }
+  const calc = (s) => parse(tokenize(s));
+  // Redondeo para que 153.63 - 108 dé 45.63 y no 45.6299999…
+  function fmt(n) {
+    if (!isFinite(n)) throw "inf";
+    let r = Number(n.toPrecision(12)); if (Object.is(r, -0)) r = 0;
+    let s = String(r);
+    if (/e/.test(s)) s = r.toPrecision(10).replace(/\.?0+e/, "e");
+    return s;
+  }
+  const isUnary = (tokens, i) => tokens[i] === "-" && (i === 0 || OPS.includes(tokens[i - 1]) || tokens[i - 1] === "(");
+  function pretty(s) {
+    let tk; try { tk = tokenize(s); } catch (e) { return s; }
+    return tk.map((t, i) => {
+      if (OPS.includes(t) && !(t === "-" && isUnary(tk, i)) && !(t === "+" && (i === 0 || tk[i-1] === "("))) return " " + (t === "-" ? "−" : t) + " ";
+      return t === "-" ? "−" : t;
+    }).join("");
+  }
+  const openParens = (s) => [...s].reduce((a, c) => a + (c === "(") - (c === ")"), 0);
+  const lastChar = () => st.expr.slice(-1);
+
+  // ---------- Entrada ----------
+  function press(k) {
+    if (/[0-9]/.test(k)) return digit(k);
+    if (k === ".") return dot();
+    if (OPS.includes(k)) return op(k);
+    if (k === "(") return openP();
+    if (k === ")") return closeP();
+    if (k === "±") return sign();
+    if (k === "%") return percent();
+    if (k === "=") return equals();
+  }
+  function startFresh() { if (st.just) { st.expr = ""; st.just = false; } }
+  function digit(d) {
+    startFresh();
+    if (lastChar() === ")") st.expr += "×";
+    if (st.expr.length > 60) return;
+    const m = st.expr.match(/(^|[^0-9.])0$/); // evita "007"
+    if (m) st.expr = st.expr.slice(0, -1);
+    st.expr += d;
+  }
+  function dot() {
+    startFresh();
+    const m = st.expr.match(/[0-9.]*$/)[0];
+    if (m.includes(".")) return;
+    if (lastChar() === ")") st.expr += "×";
+    st.expr += m === "" ? "0." : ".";
+  }
+  function op(o) {
+    st.just = false;
+    const c = lastChar();
+    if (st.expr === "" ) { if (o === "-") st.expr = "-"; return; }
+    if (c === "(") { if (o === "-") st.expr += "-"; return; }
+    if (OPS.includes(c)) {
+      const prev = st.expr.slice(-2, -1);
+      if (o === "-" && (c === "×" || c === "÷")) { st.expr += "-"; return; }
+      if (c === "-" && (prev === "×" || prev === "÷" || prev === "(" || prev === "")) { if (prev === "") return; st.expr = st.expr.slice(0, -2); }
+      else st.expr = st.expr.slice(0, -1);
+      if (st.expr === "") return;
+    }
+    if (st.expr.endsWith(".")) st.expr += "0";
+    st.expr += o;
+  }
+  function openP() {
+    startFresh();
+    const c = lastChar();
+    if (/[0-9.)]/.test(c)) st.expr += "×";
+    st.expr += "(";
+  }
+  function closeP() {
+    st.just = false;
+    if (openParens(st.expr) > 0 && /[0-9.)]/.test(lastChar())) st.expr += ")";
+  }
+  function sign() {
+    st.just = false;
+    const m = st.expr.match(/[0-9.]+$/);
+    if (!m) { if (st.expr === "") st.expr = "-"; else if (st.expr === "-") st.expr = ""; return; }
+    const at = st.expr.length - m[0].length;
+    const before = st.expr.slice(0, at);
+    const b1 = before.slice(-1), b2 = before.slice(-2, -1);
+    if (b1 === "-" && (b2 === "" || OPS.includes(b2) || b2 === "(")) st.expr = before.slice(0, -1) + m[0];
+    else if (b1 === "+" && before.length > 1) st.expr = before.slice(0, -1) + "-" + m[0];
+    else if (b1 === "-") st.expr = before.slice(0, -1) + "+" + m[0];
+    else st.expr = before + "-" + m[0];
+  }
+
+  function addHist(e) {
+    e.id = st.nid++; e.t = Date.now(); e.note = e.note || "";
+    st.hist.push(e);
+    while (st.hist.length > MAX_HIST) st.hist.shift();
+  }
+  function closeAll(s) { let n = openParens(s); while (n-- > 0) s += ")"; return s; }
+
+  function equals() {
+    if (st.just || st.expr === "") return;
+    let s = st.expr.replace(/[+\-×÷(]+$/, "");
+    s = closeAll(s);
+    let tk; try { tk = tokenize(s); } catch (e) { return flash("Revisá el cálculo"); }
+    const hasOp = tk.some((t, i) => OPS.includes(t) && !isUnary(tk, i));
+    let v; try { v = fmt(calc(s)); } catch (e) { return flash(e === "div0" ? "No se puede dividir por cero" : "Revisá el cálculo"); }
+    if (hasOp) addHist({ ex: pretty(s), res: v });
+    st.expr = v; st.just = true;
+  }
+
+  // 56 + 23 %  →  56 + 12.88 = 68.88
+  function percent() {
+    if (st.expr === "") return;
+    let tk; try { tk = tokenize(st.expr); } catch (e) { return; }
+    if (!/^[0-9.]/.test(tk[tk.length - 1] || "")) return;
+    let k = tk.length - 1, N = parseFloat(tk[k]);
+    if (isUnary(tk, k - 1)) { N = -N; k--; }
+    const o = tk[k - 1];
+    const label = pretty(st.expr).replace(/ /g, "") + "%";
+    let ex, res;
+    try {
+      if (o === undefined) { res = N / 100; ex = fmt(N) + " ÷ 100"; }
+      else {
+        const L = tk.slice(0, k - 1).join("");
+        if (openParens(L) !== 0) throw 0;
+        const base = calc(L);
+        const lHasOp = tokenize(L).some((t, i, a) => OPS.includes(t) && !isUnary(a, i));
+        const Lp = (lHasOp && (o === "×" || o === "÷")) ? "(" + pretty(L) + ")" : pretty(L);
+        if (o === "+" || o === "-") { const p = base * N / 100; res = o === "+" ? base + p : base - p; ex = Lp + (o === "+" ? " + " : " − ") + fmt(p); }
+        else if (o === "×") { res = base * N / 100; ex = Lp + " × " + fmt(N / 100); }
+        else { if (N === 0) throw "div0"; res = base / (N / 100); ex = Lp + " ÷ " + fmt(N / 100); }
+      }
+      res = fmt(res);
+    } catch (e) { return flash(e === "div0" ? "No se puede dividir por cero" : "Cerrá los paréntesis antes del %"); }
+    addHist({ ex, res, tag: label });
+    st.expr = res; st.just = true;
+    update();
+  }
+
+  // ---------- Vista ----------
+  const $ = (id) => document.getElementById(id);
+  const tapeEl = $("tape"), curEl = $("cur"), prevEl = $("prev");
+
+  function dayLabel(t) {
+    const d = new Date(t), now = new Date();
+    const y = new Date(now); y.setDate(now.getDate() - 1);
+    if (d.toDateString() === now.toDateString()) return "Hoy";
+    if (d.toDateString() === y.toDateString()) return "Ayer";
+    return d.toLocaleDateString("es-UY", { weekday: "short", day: "numeric", month: "short" });
+  }
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const isNeg = (r) => String(r).startsWith("-");
+  const show = (r) => String(r).replace(/^-/, "−");
+
+  function renderTape() {
+    if (!st.hist.length) {
+      tapeEl.innerHTML = '<div class="tape-empty">Acá van quedando las cuentas, aunque cierres la app. Tocá un renglón para reusarlo o ponerle una nota.</div>';
+      return;
+    }
+    let html = "", last = "";
+    for (const e of st.hist) {
+      const dl = dayLabel(e.t);
+      if (dl !== last) { html += `<div class="day">${esc(dl)}</div>`; last = dl; }
+      const tag = [e.note ? `<b>${esc(e.note)}</b>` : "", e.tag ? esc(e.tag) : ""].filter(Boolean).join("<br>");
+      html += `<button class="row" data-id="${e.id}"><span class="tag">${tag}</span><span class="nums"><span class="ex">${esc(e.ex)}</span><br><span class="res${isNeg(e.res) ? " neg" : ""}">= ${esc(show(e.res))}</span></span></button>`;
+    }
+    tapeEl.innerHTML = html;
+    tapeEl.scrollTop = tapeEl.scrollHeight;
+  }
+  function renderDisplay() {
+    const txt = st.expr === "" ? "0" : (st.just ? show(st.expr) : pretty(st.expr));
+    curEl.textContent = txt;
+    const len = txt.length;
+    curEl.style.fontSize = len > 22 ? "20px" : len > 16 ? "24px" : len > 12 ? "28px" : "";
+    let pv = "";
+    if (!st.just && st.expr) {
+      try {
+        const s = closeAll(st.expr.replace(/[+\-×÷(]+$/, ""));
+        const tk = tokenize(s);
+        if (tk.some((t, i) => OPS.includes(t) && !isUnary(tk, i))) pv = "= " + show(fmt(calc(s)));
+      } catch (e) {}
+    }
+    prevEl.textContent = pv;
+  }
+  function update(tapeToo = true) { if (tapeToo) renderTape(); renderDisplay(); save(); }
+
+  let toastT;
+  function flash(msg) {
+    let t = document.querySelector(".toast");
+    if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 1600);
+  }
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); flash("Copiado"); }
+    catch (e) { flash(text); }
+  }
+  const currentValue = () => {
+    if (st.expr === "") return null;
+    try { return calc(closeAll(st.expr.replace(/[+\-×÷(]+$/, ""))); } catch (e) { return null; }
+  };
+
+  // ---------- Hojas ----------
+  const overlay = $("overlay");
+  function openSheet(html, bind) {
+    overlay.innerHTML = `<div class="shade"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;
+    overlay.hidden = false;
+    const shade = overlay.querySelector(".shade");
+    shade.addEventListener("click", (ev) => { if (ev.target === shade) closeSheet(); });
+    bind(overlay.querySelector(".sheet"));
+  }
+  function closeSheet() { overlay.hidden = true; overlay.innerHTML = ""; }
+
+  function rowSheet(id) {
+    const e = st.hist.find((x) => x.id === id); if (!e) return;
+    const when = new Date(e.t).toLocaleString("es-UY", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    openSheet(`
+      <h2>${esc(when)}</h2>
+      <div class="big"><div class="ex">${esc(e.tag ? e.tag + "  ·  " : "")}${esc(e.ex)}</div><div class="res${isNeg(e.res) ? " neg" : ""}">= ${esc(show(e.res))}</div></div>
+      <label class="field" for="note-in">Nota (ej. "dólar hoy", "sueldo por hora")
+        <input id="note-in" type="text" maxlength="40" value="${esc(e.note)}" autocomplete="off"></label>
+      <div class="btns">
+        <button class="sb main" data-a="res">Usar resultado</button>
+        <button class="sb" data-a="ex">Usar cálculo</button>
+        <button class="sb" data-a="copy">Copiar resultado</button>
+        <button class="sb warn" data-a="del">Borrar renglón</button>
+      </div>`, (sh) => {
+      const inp = sh.querySelector("#note-in");
+      const keepNote = () => { const v = inp.value.trim(); if (v !== e.note) { e.note = v; update(); } };
+      inp.addEventListener("change", keepNote);
+      inp.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { keepNote(); closeSheet(); } });
+      sh.querySelectorAll("[data-a]").forEach((b) => b.addEventListener("click", () => {
+        keepNote();
+        const a = b.dataset.a;
+        if (a === "res") { insertNumber(e.res); closeSheet(); }
+        else if (a === "ex") { st.expr = e.ex.replace(/ /g, "").replace(/−/g, "-"); st.just = false; closeSheet(); update(false); }
+        else if (a === "copy") copy(e.res);
+        else if (a === "del") {
+          if (b.dataset.sure) { st.hist = st.hist.filter((x) => x.id !== id); closeSheet(); update(); }
+          else { b.dataset.sure = "1"; b.textContent = "Tocá de nuevo para borrar"; }
+        }
+      }));
+    });
+  }
+  // Mete un número en el cálculo actual (si venía de un "=", lo reemplaza)
+  function insertNumber(n) {
+    const s = String(n);
+    if (st.just || st.expr === "") { st.expr = s; st.just = false; }
+    else {
+      const c = lastChar();
+      if (/[0-9.)]/.test(c)) st.expr += "×";
+      st.expr += s.startsWith("-") && !(OPS.includes(c) || c === "(") ? "(" + s + ")" : s;
+    }
+    update(false);
+  }
+
+  function usdSheet() {
+    const v = currentValue();
+    const when = st.rateAt ? new Date(st.rateAt).toLocaleDateString("es-UY", { day: "numeric", month: "short" }) : "";
+    openSheet(`
+      <h2>Pesos y dólares</h2>
+      <label class="field" for="rate-in">Cotización del dólar (pesos por 1 US$)${when ? " · cargada el " + esc(when) : ""}
+        <input id="rate-in" type="text" inputmode="decimal" placeholder="ej. 40.25" value="${esc(st.rate)}" autocomplete="off"></label>
+      <p class="hint">${v === null ? "Escribí primero un monto en la calculadora." : "Monto actual: <b>" + esc(show(fmt(v))) + "</b>"}</p>
+      <div class="btns">
+        <button class="sb main" data-c="toUsd">$U → US$</button>
+        <button class="sb main" data-c="toUyu">US$ → $U</button>
+      </div>`, (sh) => {
+      const inp = sh.querySelector("#rate-in");
+      const readRate = () => {
+        const r = parseFloat(inp.value.replace(",", "."));
+        if (!(r > 0)) return null;
+        if (String(r) !== st.rate) { st.rate = String(r); st.rateAt = Date.now(); save(); }
+        return r;
+      };
+      inp.addEventListener("change", readRate);
+      sh.querySelectorAll("[data-c]").forEach((b) => b.addEventListener("click", () => {
+        const r = readRate();
+        if (r === null) return flash("Poné la cotización");
+        if (v === null) return flash("Primero escribí un monto");
+        const amt = fmt(v);
+        const toUsd = b.dataset.c === "toUsd";
+        const res = fmt(toUsd ? v / r : v * r);
+        addHist({ ex: show(amt) + (toUsd ? " ÷ " : " × ") + r, res, tag: toUsd ? "$U → US$" : "US$ → $U" });
+        st.expr = res; st.just = true;
+        closeSheet(); update();
+      }));
+    });
+  }
+
+  // ---------- Eventos ----------
+  $("keys").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-k]"); if (!b) return;
+    const k = b.dataset.k;
+    press(k);
+    if (k !== "%") update(k === "=");
+  });
+  $("t-clear").addEventListener("click", () => { st.expr = ""; st.just = false; update(false); });
+  $("t-back").addEventListener("click", () => { st.just = false; st.expr = st.expr.slice(0, -1); update(false); });
+  $("t-copy").addEventListener("click", () => { const v = currentValue(); if (v !== null) copy(fmt(v)); });
+  $("t-usd").addEventListener("click", usdSheet);
+  tapeEl.addEventListener("click", (ev) => { const r = ev.target.closest(".row"); if (r) rowSheet(Number(r.dataset.id)); });
+
+  // Teclado físico (por si se usa en la compu)
+  document.addEventListener("keydown", (ev) => {
+    if (!overlay.hidden) { if (ev.key === "Escape") closeSheet(); return; }
+    const map = { "*": "×", "x": "×", "/": "÷", "Enter": "=", ",": "." };
+    let k = map[ev.key] || ev.key;
+    if (/^[0-9.+\-×÷()%=]$/.test(k)) { ev.preventDefault(); press(k); if (k !== "%") update(k === "="); }
+    else if (k === "Backspace") { $("t-back").click(); }
+    else if (k === "Escape" || k === "Delete") { $("t-clear").click(); }
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>
