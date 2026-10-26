@@ -6,3 +6,5 @@ node_modules/
 .idea/
 .claude/
 _site/
+playwright-report/
+test-results/
