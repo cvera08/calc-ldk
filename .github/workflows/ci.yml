@@ -41,7 +41,8 @@ jobs:
       - name: Assemble the site
         run: |
           mkdir -p _site
-          cp index.html _site/
+          cp index.html sw.js manifest.webmanifest _site/
+          cp -R icons _site/
           cp -R js _site/
 
       # The suites run against _site, so a file that was never copied in

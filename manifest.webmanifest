@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "Calc LDK",
+  "short_name": "Calc LDK",
+  "description": "Calculadora con cinta e historial",
+  "lang": "es-UY",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#e9edef",
+  "theme_color": "#e9edef",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
