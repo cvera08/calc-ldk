@@ -1,4 +1,6 @@
-# Publishes the calculator to GitHub Pages on every push to master.
+# Tests run on every push and every pull request, against the exact folder
+# that would go live. The site is only deployed when they pass, and only
+# from master.
 name: ci
 
 on:
@@ -18,8 +20,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    name: tests (iphone + samsung)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium webkit
+
+      # Publish only what the browser needs. The readme, the tests and this
+      # workflow stay in the repository.
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp index.html _site/
+          cp -R js _site/
+
+      # The suites run against _site, so a file that was never copied in
+      # fails here instead of on the live site.
+      - name: Run the suites
+        env:
+          SITE_ROOT: _site
+        run: npx playwright test
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14
+
+      - uses: actions/upload-pages-artifact@v4
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        with:
+          path: _site
+
   deploy:
     name: deploy to github pages
+    needs: test
     if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
@@ -32,21 +78,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - uses: actions/checkout@v5
-
       - uses: actions/configure-pages@v5
-
-      # Publish only what the browser needs. The readme and this workflow
-      # stay in the repository.
-      - name: Assemble the site
-        run: |
-          mkdir -p _site
-          cp index.html _site/
-          cp -R js _site/
-
-      - uses: actions/upload-pages-artifact@v4
-        with:
-          path: _site
 
       - id: deployment
         uses: actions/deploy-pages@v4
