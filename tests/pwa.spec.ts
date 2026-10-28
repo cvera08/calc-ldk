@@ -28,7 +28,7 @@ test("Safari: ícono de inicio, nombre y pantalla completa", async ({ page, requ
 test("abre y calcula sin internet", async ({ page, context, browserName }) => {
   test.skip(browserName !== "chromium", "Playwright solo maneja service workers en Chromium");
   await page.goto("./");
-  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
   await page.reload(); // ya controlada por el service worker
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
 
@@ -43,8 +43,8 @@ test("abre y calcula sin internet", async ({ page, context, browserName }) => {
 test("el service worker solo borra cachés propias", async ({ page, browserName }) => {
   test.skip(browserName !== "chromium", "Playwright solo maneja service workers en Chromium");
   await page.goto("./");
-  await page.evaluate(() => caches.open("otra-app-v1"));
-  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.evaluate(() => caches.open("otra-app-v1").then(() => true));
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
   await expect.poll(() => page.evaluate(() => caches.keys())).toContainEqual(expect.stringMatching(/^calc-ldk-/));
   expect(await page.evaluate(() => caches.keys())).toContain("otra-app-v1");
 });

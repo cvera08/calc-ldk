@@ -4,7 +4,7 @@
   "description": "Calc LDK: calculadora con cinta e historial",
   "scripts": {
     "test": "playwright test",
-    "serve": "python3 -m http.server 4173"
+    "serve": "node tests/serve.mjs . 4173"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",
