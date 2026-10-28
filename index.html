@@ -5,50 +5,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Calc LDK</title>
 <meta name="description" content="Calculadora con cinta e historial">
-<meta name="theme-color" content="#e9edef">
+<meta name="theme-color" content="#1a1d1f">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Calc LDK">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap">
 <style>
 /* Layout: one screen. Tape (history) arriba ocupa lo que sobra, display, barra de borrar, teclado 5x4 abajo. */
 :root {
-  --bg: #e9edef;
-  --tape: #fbfcfc;
-  --tape-line: #d5dcdf;
-  --ink: #1b2326;
-  --ink-soft: #5d6a70;
-  --neg: #c8361f;
-  --key-num: #4a555b;
+  /* Un solo look fijo, como la original: no cambia con el modo claro/oscuro del teléfono. */
+  color-scheme: dark;
+  --bg: #1a1d1f;
+  --tape: #000000;
+  --tape-line: #2b3134;
+  --ink: #eef1f2;
+  --ink-soft: #98a3a8;
+  --neg: #ff4d3a;
+  --key-num: linear-gradient(#69737a, #444d52 55%, #363d41);
   --key-num-ink: #ffffff;
-  --key-op: #d3dadd;
-  --key-op-ink: #1b2326;
-  --key-tool: #c3cbcf;
-  --accent: #2f8f3a;
+  --key-op: linear-gradient(#f1f3f4, #d3d9dc 60%, #bfc6ca);
+  --key-op-ink: #15191b;
+  --key-tool: linear-gradient(#c9d0d3, #a6afb3);
+  --accent: #3aa646;
+  --key-eq: linear-gradient(#52c35e, #2f9a3b 60%, #257f30);
   --accent-ink: #ffffff;
-  --sheet: #ffffff;
-  --shade: rgba(16, 22, 25, .45);
+  --sheet: #23282b;
+  --field: #000000;
+  --shade: rgba(0, 0, 0, .6);
+  --key-edge: inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(0,0,0,.6);
   --f-num: "Atkinson Hyperlegible Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --f-ui: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0d1113; --tape: #050708; --tape-line: #2a3236; --ink: #f1f4f5; --ink-soft: #9aa7ad;
-    --neg: #ff6a50; --key-num: #3b4448; --key-num-ink: #ffffff; --key-op: #8e999e; --key-op-ink: #0d1113;
-    --key-tool: #6b767b; --accent: #3fae4b; --accent-ink: #06130a; --sheet: #192023; --shade: rgba(0,0,0,.6);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0d1113; --tape: #050708; --tape-line: #2a3236; --ink: #f1f4f5; --ink-soft: #9aa7ad;
-  --neg: #ff6a50; --key-num: #3b4448; --key-num-ink: #ffffff; --key-op: #8e999e; --key-op-ink: #0d1113;
-  --key-tool: #6b767b; --accent: #3fae4b; --accent-ink: #06130a; --sheet: #192023; --shade: rgba(0,0,0,.6);
-  color-scheme: dark;
 }
 html { height: 100%; box-sizing: border-box; }
 *, *::before, *::after { box-sizing: border-box; }
@@ -101,14 +92,14 @@ body {
 .keys { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(4, 1fr); gap: 4px;
   flex: 0 0 auto; height: min(52vh, 430px); }
 button.k {
-  border: 0; border-radius: 4px; font-family: var(--f-ui); cursor: pointer; touch-action: manipulation;
+  border: 0; border-radius: 5px; box-shadow: var(--key-edge); font-family: var(--f-ui); cursor: pointer; touch-action: manipulation;
   display: flex; align-items: center; justify-content: center; transition: filter .06s, transform .06s;
 }
 button.k:active { filter: brightness(.82); transform: scale(.97); }
 button.k:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
 .k.num { background: var(--key-num); color: var(--key-num-ink); font-size: clamp(30px, 9vw, 44px); }
 .k.op { background: var(--key-op); color: var(--key-op-ink); font-size: clamp(28px, 8vw, 40px); font-weight: 700; }
-.k.eq { background: var(--accent); color: var(--accent-ink); font-size: clamp(32px, 9vw, 46px); font-weight: 700; }
+.k.eq { background: var(--key-eq); color: var(--accent-ink); font-size: clamp(32px, 9vw, 46px); font-weight: 700; }
 .k.tool { background: var(--key-tool); color: var(--key-op-ink); height: 48px; font-size: 15px; font-weight: 700; gap: 6px; }
 .k.tool svg { width: 24px; height: 24px; }
 @media (prefers-reduced-motion: reduce) { button.k { transition: none; } button.k:active { transform: none; } }
@@ -128,12 +119,12 @@ button.k:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; 
 .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .sb { min-height: 50px; border: 0; border-radius: 8px; background: var(--key-op); color: var(--key-op-ink);
   font: 700 16px var(--f-ui); cursor: pointer; padding: 0 10px; }
-.sb.main { background: var(--accent); color: var(--accent-ink); }
+.sb.main { background: var(--key-eq); color: var(--accent-ink); }
 .sb.warn { background: transparent; color: var(--neg); border: 2px solid var(--neg); }
 .sb:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-soft); }
 .field input { font: 20px var(--f-ui); padding: 10px 12px; border-radius: 8px; border: 2px solid var(--tape-line);
-  background: var(--tape); color: var(--ink); width: 100%; user-select: text; -webkit-user-select: text; }
+  background: var(--field); color: var(--ink); width: 100%; user-select: text; -webkit-user-select: text; }
 .hint { font-size: 14px; color: var(--ink-soft); margin: 0; line-height: 1.4; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
   background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 20px; font-weight: 700; z-index: 30; }
