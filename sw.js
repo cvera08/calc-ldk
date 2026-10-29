@@ -2,7 +2,7 @@
 // Los archivos propios se sirven desde la caché al instante y se actualizan en
 // segundo plano; la versión nueva aparece la próxima vez que se abre la app.
 // Cambiar VERSION cuando se agregan o quitan archivos de la lista.
-const VERSION = "1";
+const VERSION = "2";
 const CACHE = "calc-ldk-" + VERSION;
 const FILES = [
   "./",
