@@ -243,17 +243,27 @@ test.describe("dólar", () => {
     expect(st.hist[0]).toMatchObject({ ex: "25 × 40.25", res: "1006.25", tag: "US$ → $U" });
   });
 
-  test("ida y vuelta da el mismo monto", () => {
-    const { st } = keys("1234.5");
-    Calc.convert(st, 39.87, true);
-    Calc.convert(st, 39.87, false);
-    expect(st.expr).toBe("1234.5");
+  test("redondea a centavos", () => {
+    const { st } = keys("1250");
+    expect(Calc.conversions(st, 40.25)).toEqual({ amount: "1250", usd: "31.06", uyu: "50312.5" });
+    Calc.convert(st, 40.25, true);
+    expect(st.expr).toBe("31.06");
+    expect(st.hist[0].res).toBe("31.06");
+    expect(Calc.conversions(keys("1.005").st, 1)!.usd).toBe("1.01");
   });
 
   test("convierte el resultado de la cuenta en curso", () => {
     const { st } = keys("500+500");
     Calc.convert(st, 40, true);
     expect(st.expr).toBe("25");
+  });
+
+  test("los dos resultados a la vez", () => {
+    const { st } = keys("1000");
+    expect(Calc.conversions(st, 40)).toEqual({ amount: "1000", usd: "25", uyu: "40000" });
+    expect(Calc.conversions(st, null)).toBeNull();
+    expect(Calc.conversions(Calc.fresh(), 40)).toBeNull();
+    expect(st.hist).toHaveLength(0);
   });
 
   test("sin monto avisa", () => {

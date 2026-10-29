@@ -99,32 +99,44 @@
     });
   }
 
+  // Con cotización guardada muestra directo los dos resultados; tocar uno lo
+  // guarda en el historial. Cambiar la cotización queda abajo, como opción.
   function usdSheet() {
-    const v = Calc.currentValue(st);
-    const when = st.rateAt ? new Date(st.rateAt).toLocaleDateString("es-UY", { day: "numeric", month: "short" }) : "";
+    const hasRate = Calc.readRate(st.rate) !== null;
     openSheet(`
       <h2>Pesos y dólares</h2>
-      <label class="field" for="rate-in">Cotización del dólar (pesos por 1 US$)${when ? " · cargada el " + esc(when) : ""}
-        <input id="rate-in" type="text" inputmode="decimal" placeholder="ej. 40.25" value="${esc(st.rate)}" autocomplete="off"></label>
-      <p class="hint">${v === null ? "Escribí primero un monto en la calculadora." : "Monto actual: <b>" + esc(show(fmt(v))) + "</b>"}</p>
-      <div class="btns">
-        <button class="sb main" data-c="toUsd">$U → US$</button>
-        <button class="sb main" data-c="toUyu">US$ → $U</button>
+      <div class="conv" id="conv"></div>
+      <button class="link" id="rate-toggle"${hasRate ? "" : " hidden"}></button>
+      <div class="field" id="rate-box"${hasRate ? " hidden" : ""}>
+        <label for="rate-in">Cotización del dólar (pesos por 1 US$)</label>
+        <input id="rate-in" type="text" inputmode="decimal" placeholder="ej. 40.25" value="${esc(st.rate)}" autocomplete="off">
       </div>`, (sh) => {
-      const inp = sh.querySelector("#rate-in");
-      const readRate = () => {
-        const r = Calc.readRate(inp.value);
-        if (r !== null) { Calc.setRate(st, r); save(); }
-        return r;
+      const inp = sh.querySelector("#rate-in"), conv = sh.querySelector("#conv"), toggle = sh.querySelector("#rate-toggle");
+      const paint = () => {
+        const r = Calc.readRate(st.rate);
+        const when = st.rateAt ? new Date(st.rateAt).toLocaleDateString("es-UY", { day: "numeric", month: "short" }) : "";
+        toggle.textContent = `Cambiar cotización · ${st.rate}${when ? " (" + when + ")" : ""}`;
+        const c = Calc.conversions(st, r);
+        if (r === null) conv.innerHTML = '<p class="hint">Poné la cotización para ver el monto en pesos y en dólares.</p>';
+        else if (!c) conv.innerHTML = '<p class="hint">Escribí primero un monto en la calculadora.</p>';
+        else conv.innerHTML = `
+          <button class="cv" data-c="toUsd"><span>$U ${esc(show(c.amount))} son</span><b>US$ ${esc(show(c.usd))}</b></button>
+          <button class="cv" data-c="toUyu"><span>US$ ${esc(show(c.amount))} son</span><b>$U ${esc(show(c.uyu))}</b></button>`;
       };
-      inp.addEventListener("change", readRate);
-      sh.querySelectorAll("[data-c]").forEach((b) => b.addEventListener("click", () => {
-        const r = readRate();
-        if (r === null) return flash("Poné la cotización");
-        const msg = Calc.convert(st, r, b.dataset.c === "toUsd");
+      inp.addEventListener("input", () => {
+        const r = Calc.readRate(inp.value);
+        if (r !== null) { Calc.setRate(st, r); save(); paint(); }
+      });
+      toggle.addEventListener("click", () => {
+        sh.querySelector("#rate-box").hidden = false; toggle.hidden = true; inp.focus(); inp.select();
+      });
+      conv.addEventListener("click", (ev) => {
+        const b = ev.target.closest("[data-c]"); if (!b) return;
+        const msg = Calc.convert(st, Calc.readRate(st.rate), b.dataset.c === "toUsd");
         if (msg) return flash(msg);
         closeSheet(); update();
-      }));
+      });
+      paint();
     });
   }
 

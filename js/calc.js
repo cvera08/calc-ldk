@@ -213,11 +213,19 @@
   function setRate(st, r) {
     if (String(r) !== st.rate) { st.rate = String(r); st.rateAt = Date.now(); }
   }
+  // Plata: redondeada a centavos (31.0559… → 31.06)
+  const cents = (n) => fmt(Math.round((n + Math.sign(n) * Number.EPSILON) * 100) / 100);
+  // Los dos resultados del monto en pantalla: { amount, usd, uyu }, o null si no hay monto.
+  function conversions(st, r) {
+    const v = currentValue(st);
+    if (v === null || !(r > 0)) return null;
+    return { amount: fmt(v), usd: cents(v / r), uyu: cents(v * r) };
+  }
   // Convierte lo que hay en pantalla y lo deja en el historial.
   function convert(st, r, toUsd) {
     const v = currentValue(st);
     if (v === null) return "Primero escribí un monto";
-    const res = fmt(toUsd ? v / r : v * r);
+    const res = cents(toUsd ? v / r : v * r);
     addHist(st, { ex: show(fmt(v)) + (toUsd ? " ÷ " : " × ") + r, res, tag: toUsd ? "$U → US$" : "US$ → $U" });
     st.expr = res; st.just = true;
   }
@@ -228,6 +236,6 @@
   return {
     MAX_HIST, fresh, tokenize, parse, calc, fmt, pretty, isUnary, openParens, closeAll,
     press, clear, back, addHist, currentValue, preview, insertNumber, useExpr,
-    readRate, setRate, convert, show, isNeg,
+    readRate, setRate, conversions, convert, show, isNeg,
   };
 });

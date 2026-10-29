@@ -201,36 +201,59 @@ test.describe("historial", () => {
 });
 
 test.describe("conversión US$", () => {
-  test("guarda la cotización y convierte bien en ambos sentidos", async ({ page }) => {
+  test("la primera vez pide la cotización y muestra los dos resultados", async ({ page }) => {
     await tap(page, "1000");
     await page.locator("#t-usd").tap();
+    await expect(page.locator("#rate-in")).toBeVisible();
     await page.locator("#rate-in").fill("40");
-    await page.getByRole("button", { name: "$U → US$" }).tap();
+    await expect(page.getByRole("button", { name: /\$U 1000 son\s*US\$ 25$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /US\$ 1000 son\s*\$U 40000$/ })).toBeVisible();
+    await page.getByRole("button", { name: /US\$ 25$/ }).tap();
     await expect(display(page)).toHaveText("25");
     await expect(rows(page).last().locator(".tag")).toHaveText("$U → US$");
     await expect(rows(page).last().locator(".ex")).toHaveText("1000 ÷ 40");
+  });
 
+  test("con cotización guardada muestra directo los dos resultados, también después de recargar", async ({ page }) => {
+    await tap(page, "1000");
+    await page.locator("#t-usd").tap();
+    await page.locator("#rate-in").fill("40");
+    await page.locator(".shade").tap({ position: { x: 10, y: 10 } });
     await page.reload();
+
     await page.locator("#t-usd").tap();
-    await expect(page.locator("#rate-in")).toHaveValue("40");
-    await page.getByRole("button", { name: "US$ → $U" }).tap();
-    await expect(display(page)).toHaveText("1000");
+    await expect(page.locator("#rate-in")).toBeHidden();
+    await expect(page.getByRole("button", { name: /^Cambiar cotización · 40/ })).toBeVisible();
+    await page.getByRole("button", { name: /\$U 40000$/ }).tap();
+    await expect(display(page)).toHaveText("40000");
     await expect(rows(page).last().locator(".tag")).toHaveText("US$ → $U");
+    await expect(rows(page).last().locator(".ex")).toHaveText("1000 × 40");
   });
 
-  test("acepta la cotización con coma", async ({ page }) => {
+  test("cambiar la cotización recalcula los dos resultados", async ({ page }) => {
     await tap(page, "10");
     await page.locator("#t-usd").tap();
+    await page.locator("#rate-in").fill("40");
+    await page.locator(".shade").tap({ position: { x: 10, y: 10 } });
+    await page.locator("#t-usd").tap();
+    await page.getByRole("button", { name: /^Cambiar cotización/ }).tap();
     await page.locator("#rate-in").fill("40,25");
-    await page.getByRole("button", { name: "US$ → $U" }).tap();
-    await expect(display(page)).toHaveText("402.5");
+    await expect(page.getByRole("button", { name: /\$U 402\.5$/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /US\$ 0\.25$/ })).toBeVisible();
   });
 
-  test("sin cotización avisa", async ({ page }) => {
+  test("sin monto lo dice y no guarda nada", async ({ page }) => {
+    await page.locator("#t-usd").tap();
+    await page.locator("#rate-in").fill("40");
+    await expect(page.locator(".sheet .hint")).toHaveText("Escribí primero un monto en la calculadora.");
+    await expect(page.locator(".sheet .cv")).toHaveCount(0);
+    await expect(rows(page)).toHaveCount(0);
+  });
+
+  test("sin cotización no muestra resultados", async ({ page }) => {
     await tap(page, "10");
     await page.locator("#t-usd").tap();
-    await page.getByRole("button", { name: "$U → US$" }).tap();
-    await expect(toast(page)).toHaveText("Poné la cotización");
-    await expect(rows(page)).toHaveCount(0);
+    await expect(page.locator(".sheet .hint")).toContainText("Poné la cotización");
+    await expect(page.locator(".sheet .cv")).toHaveCount(0);
   });
 });
