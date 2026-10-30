@@ -48,3 +48,42 @@ test("el service worker solo borra cachés propias", async ({ page, browserName 
   await expect.poll(() => page.evaluate(() => caches.keys())).toContainEqual(expect.stringMatching(/^calc-ldk-/));
   expect(await page.evaluate(() => caches.keys())).toContain("otra-app-v1");
 });
+
+// Cabecera PNG: ancho, alto y si tiene canal alfa (tipo de color 4 o 6).
+function png(buf: Buffer) {
+  expect(buf.subarray(1, 4).toString()).toBe("PNG");
+  return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20), alpha: buf[25] === 4 || buf[25] === 6 };
+}
+
+test("los íconos miden lo que dicen y los de inicio no tienen transparencias", async ({ page, request }) => {
+  await page.goto("./");
+  const manifest = await (await request.get("manifest.webmanifest")).json();
+  for (const icon of manifest.icons) {
+    const { w, h, alpha } = png(await (await request.get(icon.src)).body());
+    expect(`${w}x${h}`, icon.src).toBe(icon.sizes);
+    // Android recorta el maskable: si tuviera transparencias quedarían huecos
+    if (icon.purpose === "maskable") expect(alpha, icon.src).toBe(false);
+  }
+  // iPhone pinta de negro lo transparente: el ícono de inicio tiene que ser opaco
+  const apple = await page.locator('link[rel="apple-touch-icon"]').getAttribute("href");
+  const a = png(await (await request.get(apple!)).body());
+  expect(a).toEqual({ w: 180, h: 180, alpha: false });
+});
+
+test("Chrome la acepta como app instalable (no solo acceso directo)", async ({ page, context, browserName }) => {
+  test.skip(browserName !== "chromium", "La revisión de instalabilidad es de Chromium");
+  await page.goto("./");
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+  const cdp = await context.newCDPSession(page);
+  // Chrome headless no reporta "falta el manifest" como error de instalación,
+  // así que además se exige que Chrome haya encontrado y leído el manifest.
+  const { url, errors, data } = await cdp.send("Page.getAppManifest");
+  expect(url).toMatch(/manifest\.webmanifest$/);
+  expect(errors).toEqual([]);
+  const m = JSON.parse(data!);
+  expect(m.display).toBe("standalone");
+  expect(m.icons.some((i: { sizes: string }) => i.sizes === "192x192")).toBe(true);
+  expect(m.icons.some((i: { sizes: string }) => i.sizes === "512x512")).toBe(true);
+  const { installabilityErrors } = await cdp.send("Page.getInstallabilityErrors");
+  expect(installabilityErrors).toEqual([]);
+});
